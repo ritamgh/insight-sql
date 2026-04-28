@@ -12,27 +12,47 @@ Follow these rules:
 - Do not use DROP, DELETE, UPDATE, INSERT, ALTER, TRUNCATE, CREATE, GRANT, REVOKE, or COPY.
 - Prefer clear aggregate aliases such as total_revenue or order_count.
 - Add a LIMIT when the user asks for top rows or a sample.
+- Treat the BUSINESS QUESTION as authoritative. If it includes a user clarification, that clarification overrides defaults, assumptions, and retrieved examples.
+- If the user chooses product order count, rank products by COUNT(DISTINCT order_details.order_id) AS order_count, not revenue.
+- If the user chooses product units sold, rank products by SUM(order_details.quantity) AS units_sold, not revenue.
+- FOREIGN KEY RULE: child_table.fk_column = parent_table.pk_column (never reversed).
+- JOIN RULE: Every multi-table query MUST use explicit JOIN ... ON. No implicit joins (comma-separated FROM).
+- TIME RULES: Use EXTRACT(YEAR FROM col) and DATE_TRUNC('month', col) for grouping.
+- NORTHWIND DATE RULE: Northwind data is historical. For "recent", "last N days/months/years", or similar rolling windows, compare against the dataset's latest order date, not CURRENT_DATE.
+- DATASET-RELATIVE WINDOW EXAMPLE: orders.order_date >= (SELECT MAX(orders.order_date) FROM orders) - INTERVAL '1 year'.
+- Do not use CURRENT_DATE for Northwind order recency unless the user explicitly asks relative to today's real calendar date.
+- EXAMPLE CONFLICT: If a provided example conflicts with the current schema, ignore the example.
 """
 
 
 def build_sql_generation_prompt(
     refined_query: str,
     schema_context: str,
+    retrieved_examples: list[dict[str, Any]] | None = None,
     last_error: str | None = None,
+    last_sql: str | None = None,
 ) -> str:
+    examples = retrieved_examples or []
+    examples_block = "\n".join(
+        f"Q: {example.get('question', '')}\nSQL: {example.get('sql', example.get('text', ''))}"
+        for example in examples[:2]
+    ) or "No examples retrieved."
     retry_guidance = ""
     if last_error:
         retry_guidance = (
-            f"\nThe previous SQL failed validation with this error:\n{last_error}\nFix it."
+            f"\nPREVIOUS SQL:\n{last_sql or ''}\nERROR: {last_error}\nFix the SQL above."
         )
-    return f"""Schema context:
+    return f"""SCHEMA:
 {schema_context}
 
-Business question:
+EXAMPLES:
+{examples_block}
+
+BUSINESS QUESTION:
 {refined_query}
 {retry_guidance}
 
-Return only SQL, with no markdown fence and no explanation."""
+Return only SQL."""
 
 
 EXPLANATION_SYSTEM_PROMPT = """You are a concise business analyst summarizing SQL query results for a non-technical audience.

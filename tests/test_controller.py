@@ -46,6 +46,13 @@ def test_controller_retries_after_validation_error(monkeypatch):
         state["explanation"] = "All good."
         return state
 
+    def mock_disambiguation_agent(state):
+        state["refined_query"] = state["query"]
+        state["pending_clarification"] = False
+        state["is_ambiguous"] = False
+        return state
+
+    monkeypatch.setattr("backend.app.controller.disambiguation_agent", mock_disambiguation_agent)
     monkeypatch.setattr("backend.app.controller.sql_generation_agent", mock_sql_agent)
     monkeypatch.setattr("backend.app.controller.validation_agent", mock_validation_agent)
     monkeypatch.setattr("backend.app.controller.execution_agent", mock_execution_agent)
@@ -97,6 +104,13 @@ def test_controller_does_not_retry_database_connection_errors(monkeypatch):
         state["explanation"] = "error."
         return state
 
+    def mock_disambiguation_agent(state):
+        state["refined_query"] = state["query"]
+        state["pending_clarification"] = False
+        state["is_ambiguous"] = False
+        return state
+
+    monkeypatch.setattr("backend.app.controller.disambiguation_agent", mock_disambiguation_agent)
     monkeypatch.setattr("backend.app.controller.sql_generation_agent", mock_sql_agent)
     monkeypatch.setattr("backend.app.controller.validation_agent", mock_validation_agent)
     monkeypatch.setattr("backend.app.controller.execution_agent", mock_execution_agent)
@@ -115,7 +129,15 @@ def test_controller_does_not_retry_database_connection_errors(monkeypatch):
 
 # ── Out-of-scope early exit ───────────────────────────────────────────────────
 
-def test_controller_stops_on_out_of_scope_query():
+def test_controller_stops_on_out_of_scope_query(monkeypatch):
+    def mock_disambiguation_agent(state):
+        state["refined_query"] = state["query"]
+        state["pending_clarification"] = False
+        state["is_ambiguous"] = False
+        return state
+
+    monkeypatch.setattr("backend.app.controller.disambiguation_agent", mock_disambiguation_agent)
+
     from backend.app.controller import _build_workflow
     _build_workflow.cache_clear()
 
@@ -156,6 +178,13 @@ LIMIT 10;"""
         state["explanation"] = "Demo result."
         return state
 
+    def mock_disambiguation_agent(state):
+        state["refined_query"] = state["query"]
+        state["pending_clarification"] = False
+        state["is_ambiguous"] = False
+        return state
+
+    monkeypatch.setattr("backend.app.controller.disambiguation_agent", mock_disambiguation_agent)
     monkeypatch.setattr("backend.app.controller.sql_generation_agent", mock_sql_agent)
     monkeypatch.setattr("backend.app.controller.validation_agent", mock_validation_agent)
     monkeypatch.setattr("backend.app.controller.explanation_agent", mock_explanation_agent)
@@ -167,3 +196,22 @@ LIMIT 10;"""
 
     assert state["result"] == [{"customer_id": "ALFKI"}] or len(state["result"]) > 0
     assert state["data_source"] == "demo"
+
+
+def test_controller_initial_state_includes_new_keys(monkeypatch):
+    def mock_disambiguation_agent(state):
+        state["pending_clarification"] = True
+        state["clarification_question"] = "Which metric?"
+        return state
+
+    monkeypatch.setattr("backend.app.controller.disambiguation_agent", mock_disambiguation_agent)
+
+    from backend.app.controller import _build_workflow
+    _build_workflow.cache_clear()
+
+    state = run_agent_pipeline("Show me the data")
+
+    assert state["pending_clarification"] is True
+    assert state["clarification_question"] == "Which metric?"
+    assert "retrieved_examples" in state
+    assert _agent_names(state) == ["Disambiguation Agent"]

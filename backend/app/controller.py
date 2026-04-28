@@ -18,7 +18,13 @@ from backend.app.schemas.state import AgentState
 from backend.app.services.llm import LLMUnavailableError
 
 
-def initial_state(query: str) -> AgentState:
+def initial_state(
+    query: str,
+    *,
+    max_attempts: int = 3,
+    use_rag: bool = True,
+    use_validation_layers: bool = True,
+) -> AgentState:
     return {
         "query": query,
         "refined_query": "",
@@ -27,14 +33,53 @@ def initial_state(query: str) -> AgentState:
         "result": [],
         "error": "",
         "retry_count": 0,
-        "max_attempts": 2,
+        "max_attempts": max_attempts,
         "agent_trace": [],
+        "clarification": "",
+        "clarification_question": "",
+        "user_clarification": "",
+        "applied_clarification": "",
+        "clarification_attempts": 0,
+        "pending_clarification": False,
+        "disambiguation_triggered": False,
+        "retrieved_examples": [],
+        "retrieved_schema_chunks": [],
+        "validation_layers_triggered": [],
+        "failed_layer": None,
+        "cardinality_warning": None,
+        "last_sql": "",
+        "data_source": "",
+        "use_rag": use_rag,
+        "use_validation_layers": use_validation_layers,
     }
 
 
-def run_agent_pipeline(query: str, max_attempts: int = 2) -> AgentState:
-    state = initial_state(query)
-    state["max_attempts"] = max_attempts
+def run_agent_pipeline(
+    query: str = "",
+    max_attempts: int = 3,
+    *,
+    prior_state: AgentState | None = None,
+    user_clarification: str | None = None,
+    use_rag: bool = True,
+    use_validation_layers: bool = True,
+) -> AgentState:
+    if prior_state is not None:
+        state = dict(prior_state)
+        if user_clarification is not None:
+            state["user_clarification"] = user_clarification
+            state["clarification_attempts"] = int(state.get("clarification_attempts", 0) or 0) + 1
+            state["pending_clarification"] = False
+            state["error"] = ""
+        state["max_attempts"] = max_attempts
+        state["use_rag"] = use_rag
+        state["use_validation_layers"] = use_validation_layers
+    else:
+        state = initial_state(
+            query,
+            max_attempts=max_attempts,
+            use_rag=use_rag,
+            use_validation_layers=use_validation_layers,
+        )
     graph = _build_workflow()
     return graph.invoke(state)
 
@@ -52,12 +97,16 @@ def _build_workflow():
     workflow.add_node("explanation",    _explanation_node)
 
     workflow.add_edge(START, "disambiguation")
-    workflow.add_edge("disambiguation", "domain_guard")
     workflow.add_edge("retrieval", "sql_generation")
     workflow.add_edge("sql_generation", "validation")
     workflow.add_edge("execution", "explanation")
     workflow.add_edge("explanation", END)
 
+    workflow.add_conditional_edges(
+        "disambiguation",
+        _route_after_disambiguation,
+        {"domain_guard": "domain_guard", "end": END},
+    )
     workflow.add_conditional_edges(
         "domain_guard",
         _route_after_domain_guard,
@@ -84,13 +133,19 @@ def _route_after_domain_guard(state: AgentState) -> str:
     return "retrieval"
 
 
+def _route_after_disambiguation(state: AgentState) -> str:
+    if state.get("pending_clarification"):
+        return "end"
+    return "domain_guard"
+
+
 def _route_after_validation(state: AgentState) -> str:
     validation = state.get("validation", {})
     if validation.get("is_valid"):
         return "execution"
     can_retry = (
         validation.get("retryable", True)
-        and state.get("retry_count", 0) < state.get("max_attempts", 2)
+        and state.get("retry_count", 0) < state.get("max_attempts", 3)
     )
     if can_retry:
         return "sql_generation"
@@ -111,7 +166,17 @@ def _disambiguation_node(state: AgentState) -> dict[str, Any]:
     return _state_update(
         current_state=state,
         updated_state=updated,
-        keys=["is_ambiguous", "refined_query", "clarification"],
+        keys=[
+            "is_ambiguous",
+            "refined_query",
+            "clarification",
+            "clarification_question",
+            "user_clarification",
+            "applied_clarification",
+            "pending_clarification",
+            "clarification_attempts",
+            "disambiguation_triggered",
+        ],
         agent="Disambiguation Agent",
         status="success",
         detail=detail,
@@ -143,11 +208,16 @@ def _domain_guard_node(state: AgentState) -> dict[str, Any]:
 def _retrieval_node(state: AgentState) -> dict[str, Any]:
     started_at = perf_counter()
     updated = retrieval_agent(dict(state))
-    detail = f"Selected {updated.get('schema', '').count('Table:')} schema table(s)."
+    detail = (
+        f"Retrieved {len(updated.get('retrieved_schema_chunks', []))} schema chunk(s) "
+        f"and {len(updated.get('retrieved_examples', []))} example(s)."
+        if updated.get("retrieved_schema_chunks") or updated.get("retrieved_examples")
+        else f"Selected {updated.get('schema', '').count('Table:')} schema table(s)."
+    )
     return _state_update(
         current_state=state,
         updated_state=updated,
-        keys=["schema"],
+        keys=["schema", "retrieved_schema_chunks", "retrieved_examples", "retrieval_warning"],
         agent="Retrieval Agent",
         status="success",
         detail=detail,
@@ -169,7 +239,7 @@ def _sql_generation_node(state: AgentState) -> dict[str, Any]:
     return _state_update(
         current_state=state,
         updated_state=updated,
-        keys=["sql", "error"],
+        keys=["sql", "error", "last_sql"],
         agent="SQL Generation Agent",
         status=status,
         detail=detail,
@@ -186,12 +256,14 @@ def _validation_node(state: AgentState) -> dict[str, Any]:
     updates: dict[str, Any] = {
         "validation": validation,
         "error": "" if validation["is_valid"] else str(validation["error"]),
+        "validation_layers_triggered": validation.get("validation_layers_triggered", []),
+        "failed_layer": validation.get("failed_layer"),
     }
 
     should_retry = (
         not validation["is_valid"]
         and validation.get("retryable", True)
-        and state.get("retry_count", 0) < state.get("max_attempts", 2)
+        and state.get("retry_count", 0) < state.get("max_attempts", 3)
     )
     if should_retry:
         updates["retry_count"] = state.get("retry_count", 0) + 1
@@ -219,7 +291,7 @@ def _execution_node(state: AgentState) -> dict[str, Any]:
     return _state_update(
         current_state=state,
         updated_state=updated,
-        keys=["sql", "result", "error", "data_source"],
+        keys=["sql", "result", "error", "data_source", "cardinality_warning"],
         agent="Execution Agent",
         status="success" if not updated.get("error") else "failed",
         detail=detail,

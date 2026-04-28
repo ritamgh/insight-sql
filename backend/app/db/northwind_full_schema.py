@@ -1,0 +1,165 @@
+"""Full Northwind schema metadata for retrieval, prompting, and validation."""
+from __future__ import annotations
+
+TABLE_COLUMNS: dict[str, dict[str, str]] = {
+    "categories": {
+        "category_id": "smallint primary key",
+        "category_name": "varchar category display name",
+        "description": "text category description",
+        "picture": "bytea image payload",
+    },
+    "customer_customer_demo": {
+        "customer_id": "varchar foreign key to customers.customer_id",
+        "customer_type_id": "varchar foreign key to customer_demographics.customer_type_id",
+    },
+    "customer_demographics": {
+        "customer_type_id": "varchar primary key",
+        "customer_desc": "text customer demographic description",
+    },
+    "customers": {
+        "customer_id": "varchar primary key",
+        "company_name": "varchar customer company name",
+        "contact_name": "varchar customer contact",
+        "contact_title": "varchar contact job title",
+        "address": "varchar street address",
+        "city": "varchar customer city",
+        "region": "varchar customer region",
+        "postal_code": "varchar postal code",
+        "country": "varchar customer country",
+        "phone": "varchar phone number",
+        "fax": "varchar fax number",
+    },
+    "employees": {
+        "employee_id": "smallint primary key",
+        "last_name": "varchar employee last name",
+        "first_name": "varchar employee first name",
+        "title": "varchar employee title",
+        "title_of_courtesy": "varchar courtesy title",
+        "birth_date": "date employee birth date",
+        "hire_date": "date employee hire date",
+        "address": "varchar street address",
+        "city": "varchar employee city",
+        "region": "varchar employee region",
+        "postal_code": "varchar postal code",
+        "country": "varchar employee country",
+        "home_phone": "varchar phone number",
+        "extension": "varchar phone extension",
+        "photo": "bytea employee photo",
+        "notes": "text employee notes",
+        "reports_to": "smallint manager employee_id",
+        "photo_path": "varchar photo path",
+    },
+    "employee_territories": {
+        "employee_id": "smallint foreign key to employees.employee_id",
+        "territory_id": "varchar foreign key to territories.territory_id",
+    },
+    "order_details": {
+        "order_id": "smallint foreign key to orders.order_id",
+        "product_id": "smallint foreign key to products.product_id",
+        "unit_price": "real sale unit price",
+        "quantity": "smallint units sold",
+        "discount": "real discount fraction from 0 to 1",
+    },
+    "orders": {
+        "order_id": "smallint primary key",
+        "customer_id": "varchar foreign key to customers.customer_id",
+        "employee_id": "smallint foreign key to employees.employee_id",
+        "order_date": "date order date",
+        "required_date": "date required delivery date",
+        "shipped_date": "date shipped date",
+        "ship_via": "smallint foreign key to shippers.shipper_id",
+        "freight": "real freight charge",
+        "ship_name": "varchar recipient name",
+        "ship_address": "varchar shipping address",
+        "ship_city": "varchar shipping city",
+        "ship_region": "varchar shipping region",
+        "ship_postal_code": "varchar shipping postal code",
+        "ship_country": "varchar shipping country",
+    },
+    "products": {
+        "product_id": "smallint primary key",
+        "product_name": "varchar product display name",
+        "supplier_id": "smallint foreign key to suppliers.supplier_id",
+        "category_id": "smallint foreign key to categories.category_id",
+        "quantity_per_unit": "varchar packaged quantity",
+        "unit_price": "real current unit price",
+        "units_in_stock": "smallint current stock",
+        "units_on_order": "smallint stock on order",
+        "reorder_level": "smallint reorder threshold",
+        "discontinued": "integer discontinued flag",
+    },
+    "region": {
+        "region_id": "smallint primary key",
+        "region_description": "varchar region description",
+    },
+    "shippers": {
+        "shipper_id": "smallint primary key",
+        "company_name": "varchar shipper company name",
+        "phone": "varchar phone number",
+    },
+    "suppliers": {
+        "supplier_id": "smallint primary key",
+        "company_name": "varchar supplier company name",
+        "contact_name": "varchar supplier contact",
+        "contact_title": "varchar contact job title",
+        "address": "varchar street address",
+        "city": "varchar supplier city",
+        "region": "varchar supplier region",
+        "postal_code": "varchar postal code",
+        "country": "varchar supplier country",
+        "phone": "varchar phone number",
+        "fax": "varchar fax number",
+        "homepage": "text supplier homepage",
+    },
+    "territories": {
+        "territory_id": "varchar primary key",
+        "territory_description": "varchar territory description",
+        "region_id": "smallint foreign key to region.region_id",
+    },
+    "us_states": {
+        "state_id": "smallint primary key",
+        "state_name": "varchar state name",
+        "state_abbr": "varchar state abbreviation",
+        "state_region": "varchar state region",
+    },
+}
+
+PRIMARY_KEYS: dict[str, tuple[str, ...]] = {
+    "categories": ("category_id",),
+    "customer_customer_demo": ("customer_id", "customer_type_id"),
+    "customer_demographics": ("customer_type_id",),
+    "customers": ("customer_id",),
+    "employees": ("employee_id",),
+    "employee_territories": ("employee_id", "territory_id"),
+    "order_details": ("order_id", "product_id"),
+    "orders": ("order_id",),
+    "products": ("product_id",),
+    "region": ("region_id",),
+    "shippers": ("shipper_id",),
+    "suppliers": ("supplier_id",),
+    "territories": ("territory_id",),
+    "us_states": ("state_id",),
+}
+
+FOREIGN_KEYS: list[tuple[str, str, str, str]] = [
+    ("orders", "customer_id", "customers", "customer_id"),
+    ("orders", "employee_id", "employees", "employee_id"),
+    ("orders", "ship_via", "shippers", "shipper_id"),
+    ("order_details", "product_id", "products", "product_id"),
+    ("order_details", "order_id", "orders", "order_id"),
+    ("products", "category_id", "categories", "category_id"),
+    ("products", "supplier_id", "suppliers", "supplier_id"),
+    ("territories", "region_id", "region", "region_id"),
+    ("employee_territories", "territory_id", "territories", "territory_id"),
+    ("employee_territories", "employee_id", "employees", "employee_id"),
+    ("customer_customer_demo", "customer_type_id", "customer_demographics", "customer_type_id"),
+    ("customer_customer_demo", "customer_id", "customers", "customer_id"),
+    ("employees", "reports_to", "employees", "employee_id"),
+]
+
+
+def foreign_key_lines() -> list[str]:
+    return [
+        f"{child}.{child_col} = {parent}.{parent_col}"
+        for child, child_col, parent, parent_col in FOREIGN_KEYS
+    ]

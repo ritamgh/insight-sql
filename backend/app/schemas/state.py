@@ -20,3 +20,17 @@ class AgentState(TypedDict, total=False):
     data_source: str
     agent_trace: list[dict[str, Any]]
     db_health: dict[str, Any]
+    clarification_question: str
+    user_clarification: str
+    applied_clarification: str
+    clarification_attempts: int
+    pending_clarification: bool
+    disambiguation_triggered: bool
+    retrieved_examples: list[dict[str, Any]]
+    retrieved_schema_chunks: list[dict[str, Any]]
+    validation_layers_triggered: list[str]
+    failed_layer: str | None
+    cardinality_warning: str | None
+    last_sql: str
+    use_rag: bool
+    use_validation_layers: bool

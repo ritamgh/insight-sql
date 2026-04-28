@@ -1,10 +1,10 @@
-<!-- Generated: 2026-04-28 | Files scanned: 1 | Token estimate: ~300 -->
+<!-- Generated: 2026-04-28 | Files scanned: 1 | Token estimate: ~400 -->
 
 # Frontend
 
 ## Streamlit App
 
-`frontend/streamlit_app.py` — Single-page Streamlit dashboard.
+`frontend/streamlit_app.py` — Single-page Streamlit dashboard with session state management.
 
 ## Layout
 
@@ -14,24 +14,35 @@
 │                                                      │
 │ [Query Form]  "Business question" [Run query]        │
 │                                                      │
-│ Explanation  │ Agent Trace (dataframe)               │
-│ Results      │ (dataframe)                           │
-│ SQL          │ (expandable)                          │
-│ Agent State  │ (expandable JSON)                     │
+│ [Clarification form] (shown when pending_clarification)│
+│                                                      │
+│ Explanation │ Cardinality warning (conditional)       │
+│ Status (demo/postgres/out-of-scope)                  │
+│ Default assumption notice (conditional)              │
+│ Agent Trace (dataframe)                              │
+│ Results (dataframe)                                  │
+│ Retrieved schema context (expander, top-3)           │
+│ Retrieved examples (expander, top-2)                 │
+│ Generated SQL (expander)                             │
+│ Agent State (expander, JSON)                         │
 └─────────────────────────────────────────────────────┘
 
 Sidebar:
   - System Status (DB health)
   - Agent Stack (LangGraph / Groq / LangSmith)
   - Demo Queries (7 preset buttons)
+  - Query History (last 10, session-scoped)
 ```
 
 ## Key Interactions
 
 1. User enters query (text input or demo button)
-2. Calls `run_agent_pipeline(query)` from controller
-3. Displays: explanation → error/status → agent trace → result rows → generated SQL → full state
+2. `run_agent_pipeline(query)` — if `pending_clarification`, shows clarification form
+3. User submits clarification → `run_agent_pipeline(prior_state, user_clarification)` (max 2 rounds)
+4. Displays: explanation → cardinality warning → status → default assumption → trace → results → schema → examples → SQL → state
 
-## Example Queries
+## Session State
 
-"Top customers by revenue", "Recent orders", "Best products", "Sales by category", "Employees by revenue", "Average freight by shipper", "Highest sold car model" (out-of-scope test)
+- `last_state` — most recent AgentState for rendering
+- `pending_state` — paused state awaiting user clarification
+- `history` — `deque(maxlen=10)` of past queries

@@ -28,18 +28,43 @@ def explanation_agent(state: AgentState) -> AgentState:
             "The query ran successfully but returned no rows. "
             "The selected filters may be too narrow for the current Northwind data."
         )
+        if state.get("cardinality_warning"):
+            state["explanation"] = f"{state['cardinality_warning']} {state['explanation']}"
+        return state
+
+    prefix = _result_prefix(rows, state.get("cardinality_warning"))
+    one_cell = _single_cell_answer(rows)
+    if one_cell:
+        state["explanation"] = f"{prefix}{one_cell}" if prefix else one_cell
         return state
 
     try:
-        state["explanation"] = generate_explanation_with_groq(
+        explanation = generate_explanation_with_groq(
             query=state.get("query", ""),
             sql=state.get("sql", ""),
             rows=rows,
         )
     except LLMUnavailableError:
-        state["explanation"] = _fallback_one_liner(rows)
+        explanation = _fallback_one_liner(rows)
+
+    state["explanation"] = f"{prefix}{explanation}" if prefix else explanation
 
     return state
+
+
+def _single_cell_answer(rows: list[dict[str, Any]]) -> str | None:
+    if len(rows) == 1 and len(rows[0]) == 1:
+        return f"The answer is {next(iter(rows[0].values()))}."
+    return None
+
+
+def _result_prefix(rows: list[dict[str, Any]], warning: str | None) -> str:
+    parts: list[str] = []
+    if warning:
+        parts.append(warning)
+    if len(rows) > 20:
+        parts.append(f"Showing the top {min(len(rows), 100)} of {len(rows)} rows.")
+    return " ".join(parts) + (" " if parts else "")
 
 
 def _fallback_one_liner(rows: list[dict[str, Any]]) -> str:

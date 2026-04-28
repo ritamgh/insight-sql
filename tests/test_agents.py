@@ -9,15 +9,25 @@ from backend.app.agents.explanation_agent import explanation_agent
 from backend.app.agents.retrieval_agent import retrieval_agent
 from backend.app.agents.sql_generation_agent import sql_generation_agent
 from backend.app.agents.validation_agent import validation_agent
+from backend.app.db.demo_executor import fetch_demo_rows
 from backend.app.services.llm import LLMUnavailableError
 
 
 # ── Disambiguation ────────────────────────────────────────────────────────────
 
-def test_disambiguation_marks_ambiguous_and_adds_default_assumption():
+def test_disambiguation_marks_ambiguous_and_adds_default_assumption(monkeypatch):
+    monkeypatch.setattr(
+        "backend.app.agents.disambiguation_agent.disambiguate_with_groq",
+        lambda *_: {
+            "is_ambiguous": True,
+            "clarification_question": "What time window should I use for recent orders?",
+            "default_assumption": "Assume recent means the last 30 days in the dataset by orders.order_date.",
+        },
+    )
     state = disambiguation_agent({"query": "Show recent orders"})
-    assert state["is_ambiguous"] is True
-    assert "last 30 days" in state["refined_query"]
+    assert state["pending_clarification"] is True
+    assert "time window" in state["clarification_question"]
+    assert "last 30 days" in state["clarification"]
 
 
 # ── Retrieval ─────────────────────────────────────────────────────────────────
@@ -26,7 +36,8 @@ def test_retrieval_selects_relevant_schema_snippets():
     state = retrieval_agent({"refined_query": "Top customers by revenue"})
     assert "Table: customers" in state["schema"]
     assert "Table: orders" in state["schema"]
-    assert "Table: order_details" in state["schema"]
+    assert "FOREIGN KEY RELATIONSHIPS" in state["schema"]
+    assert state["retrieved_schema_chunks"]
 
 
 # ── Domain guard ──────────────────────────────────────────────────────────────
@@ -48,6 +59,7 @@ def test_validation_blocks_dangerous_sql():
     result = validation_agent({"sql": "DELETE FROM customers;"})
     assert result["is_valid"] is False
     assert "forbidden" in str(result["error"])
+    assert result["failed_layer"] == "safety"
 
 
 def test_validation_uses_explain_for_safe_sql(monkeypatch):
@@ -112,6 +124,27 @@ LIMIT 10;"""
     })
     assert state["data_source"] == "demo"
     assert len(state["result"]) > 0
+
+
+def test_demo_recent_orders_honors_dataset_relative_interval():
+    one_year_sql = """
+SELECT orders.order_id, orders.customer_id, orders.order_date
+FROM orders
+WHERE orders.order_date >= (SELECT MAX(orders.order_date) FROM orders) - INTERVAL '1 year'
+ORDER BY orders.order_date DESC
+LIMIT 100;
+"""
+    thirty_day_sql = """
+SELECT orders.order_id, orders.customer_id, orders.order_date
+FROM orders
+WHERE orders.order_date >= (SELECT MAX(orders.order_date) FROM orders) - INTERVAL '30 days'
+ORDER BY orders.order_date DESC
+LIMIT 100;
+"""
+    one_year_rows = fetch_demo_rows(one_year_sql)
+    thirty_day_rows = fetch_demo_rows(thirty_day_sql)
+    assert len(one_year_rows) > len(thirty_day_rows)
+    assert len(one_year_rows) == 8
 
 
 # ── SQL generation ────────────────────────────────────────────────────────────

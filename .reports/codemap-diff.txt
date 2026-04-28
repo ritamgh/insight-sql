@@ -1,26 +1,41 @@
-Codemap Analysis Report — 2026-04-28
-======================================
+Codemap Analysis Report — 2026-04-28 (Update 3)
+=================================================
 
 Project: insight-sql
-Type: Single-app (Python backend + Streamlit frontend)
-Status: Initial codemap generation (no previous codemaps existed)
+Previous scan: 2026-04-28 (52 files)
+Current scan: 52 files (no new files)
 
-Files Scanned: 30 source files (excluding __pycache__, .git, node_modules)
+Diff: <10% — incremental update
 
-Architecture Summary:
-  - LangGraph StateGraph with 7 agents in a linear pipeline
-  - Groq LLM for SQL generation and explanation
-  - PostgreSQL 16 (Docker) with Northwind dataset
-  - Pandas-based demo executor as fallback
-  - Streamlit single-page dashboard
+## Files Modified Since Last Scan
 
-Codemaps Generated:
-  [NEW] docs/CODEMAPS/architecture.md   (~600 tokens) — System overview, pipeline flow, routing logic
-  [NEW] docs/CODEMAPS/backend.md        (~700 tokens) — Agents, controller, services, DB layer, config
-  [NEW] docs/CODEMAPS/frontend.md       (~300 tokens) — Streamlit UI layout and interactions
-  [NEW] docs/CODEMAPS/data.md           (~500 tokens) — DB schema, demo backend, retrieval mapping
-  [NEW] docs/CODEMAPS/dependencies.md   (~350 tokens) — External services, Python deps, fallback behavior
+  backend/app/agents/disambiguation_agent.py  (283 → 346 lines)
+  backend/app/services/llm.py                 (78 → 132 lines)
+  backend/app/schemas/state.py                (32 → 36 lines)
+  backend/app/agents/retrieval_agent.py       (minor)
+  backend/app/controller.py                   (minor)
+  backend/app/prompts/sql_generation.py       (minor)
+  frontend/streamlit_app.py                   (minor)
+  tests/test_disambiguation_llm.py            (minor)
 
-No staleness warnings (initial generation).
+## Changes
 
-No architecture changes detected (baseline).
+1. Disambiguation merge logic overhauled:
+   - `_combine_query_with_clarification()` → `merge_clarification()` with context-aware prefixing
+   - Detects question type (breakdown, metric, time window, filter) and formats answer accordingly
+   - Helper functions: `_asks_for_breakdown()`, `_asks_for_metric()`, `_asks_for_time_window()`, `_asks_for_filter()`, `_looks_like_dimension_answer()`, `_looks_like_filter_answer()`
+   - User clarification now short-circuits (sets `pending_clarification=False`) instead of re-running LLM
+
+2. LLM service expanded:
+   - `disambiguate_with_groq()` → returns `{is_ambiguous, clarification_question, default_assumption}`
+   - `_extract_json()` parses LLM JSON output with validation and fallback
+   - Langchain imports now lazy (try/except wrapper)
+
+3. State: added `user_clarification` and `applied_clarification` fields
+
+## Codemaps Updated
+
+  [UPDATED] docs/CODEMAPS/backend.md — disambiguation merge logic, LLM service, state fields
+  [UNCHANGED] architecture.md, frontend.md, data.md, dependencies.md
+
+No staleness warnings.

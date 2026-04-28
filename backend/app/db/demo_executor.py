@@ -1,5 +1,6 @@
 """Pattern-match SQL string to pandas computation. Never actually runs SQL."""
 from __future__ import annotations
+import re
 from typing import Any
 
 import pandas as pd
@@ -11,23 +12,29 @@ def fetch_demo_rows(sql: str) -> list[dict[str, Any]]:
     sql_lower = sql.lower()
     tables = load_demo_tables()
 
-    if "from categories" in sql_lower and "total_revenue" in sql_lower:
+    if _mentions(sql_lower, "categories") and "total_revenue" in sql_lower:
         return _category_revenue(tables)
-    if "from employees" in sql_lower and "total_revenue" in sql_lower:
+    if _mentions(sql_lower, "employees") and "total_revenue" in sql_lower:
         return _employee_revenue(tables)
-    if "from products" in sql_lower and "units_in_stock" in sql_lower:
+    if _mentions(sql_lower, "products") and "order_count" in sql_lower:
+        return _product_order_count(tables)
+    if _mentions(sql_lower, "products") and "units_in_stock" in sql_lower:
         return _product_inventory(tables)
-    if "from products" in sql_lower and "total_revenue" in sql_lower:
+    if _mentions(sql_lower, "products") and "total_revenue" in sql_lower:
         return _product_revenue(tables)
-    if "from shippers" in sql_lower:
+    if _mentions(sql_lower, "shippers"):
         return _shipper_freight(tables)
-    if "from customers" in sql_lower and "count(customers.customer_id)" in sql_lower:
+    if _mentions(sql_lower, "customers") and "count(customers.customer_id)" in sql_lower:
         return _customers_by_country(tables)
     if "where orders.order_date >=" in sql_lower:
-        return _recent_orders(tables)
-    if "from customers" in sql_lower and "total_revenue" in sql_lower:
+        return _recent_orders(tables, sql_lower)
+    if _mentions(sql_lower, "customers") and "total_revenue" in sql_lower:
         return _customer_revenue(tables)
-    return _recent_orders(tables)
+    return _recent_orders(tables, sql_lower)
+
+
+def _mentions(sql_lower: str, table: str) -> bool:
+    return bool(re.search(rf"\b{re.escape(table)}\b", sql_lower))
 
 
 def _customer_revenue(tables: dict[str, pd.DataFrame]) -> list[dict[str, Any]]:
@@ -62,6 +69,20 @@ def _product_revenue(tables: dict[str, pd.DataFrame]) -> list[dict[str, Any]]:
               .head(10)
     )
     result["total_revenue"] = result["total_revenue"].round(2)
+    return result.to_dict(orient="records")
+
+
+def _product_order_count(tables: dict[str, pd.DataFrame]) -> list[dict[str, Any]]:
+    merged = tables["order_details"].merge(
+        tables["products"][["product_id", "product_name"]], on="product_id"
+    )
+    result = (
+        merged.groupby(["product_id", "product_name"], as_index=False)["order_id"]
+              .nunique()
+              .rename(columns={"order_id": "order_count"})
+              .sort_values("order_count", ascending=False)
+              .head(10)
+    )
     return result.to_dict(orient="records")
 
 
@@ -150,9 +171,9 @@ def _customers_by_country(tables: dict[str, pd.DataFrame]) -> list[dict[str, Any
     return result.to_dict(orient="records")
 
 
-def _recent_orders(tables: dict[str, pd.DataFrame]) -> list[dict[str, Any]]:
+def _recent_orders(tables: dict[str, pd.DataFrame], sql_lower: str = "") -> list[dict[str, Any]]:
     orders = tables["orders"].copy()
-    cutoff = orders["order_date"].max() - pd.Timedelta(days=30)
+    cutoff = _dataset_relative_cutoff(orders["order_date"].max(), sql_lower)
     recent = orders[orders["order_date"] >= cutoff].copy()
     merged = recent.merge(
         tables["customers"][["customer_id", "company_name"]], on="customer_id"
@@ -162,3 +183,20 @@ def _recent_orders(tables: dict[str, pd.DataFrame]) -> list[dict[str, Any]]:
     merged["freight"] = merged["freight"].round(2)
     cols = ["order_id", "company_name", "order_date", "shipped_date", "freight"]
     return merged[cols].to_dict(orient="records")
+
+
+def _dataset_relative_cutoff(max_order_date: pd.Timestamp, sql_lower: str) -> pd.Timestamp:
+    match = re.search(r"interval\s+'(\d+)\s+(day|days|week|weeks|month|months|year|years)'", sql_lower)
+    if not match:
+        return max_order_date - pd.Timedelta(days=30)
+    amount = int(match.group(1))
+    unit = match.group(2)
+    if unit.startswith("day"):
+        return max_order_date - pd.Timedelta(days=amount)
+    if unit.startswith("week"):
+        return max_order_date - pd.Timedelta(weeks=amount)
+    if unit.startswith("month"):
+        return max_order_date - pd.DateOffset(months=amount)
+    if unit.startswith("year"):
+        return max_order_date - pd.DateOffset(years=amount)
+    return max_order_date - pd.Timedelta(days=30)

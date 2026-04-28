@@ -8,54 +8,63 @@ Docker Compose: `postgres:16` on port `5433:5432`, database `northwind`.
 
 Init script: `data/postgres/init/01_northwind_demo.sql`
 
-### Tables
+### Tables (15 in schema metadata)
 
 ```
-categories     (category_id PK, category_name, description, picture)
-customers      (customer_id PK, company_name, contact_name, city, country)
-employees      (employee_id PK, first_name, last_name, title, country)
-orders         (order_id PK, customer_id FK→customers, employee_id FK→employees,
-                order_date, shipped_date, ship_via FK→shippers, freight)
-order_details  (order_id FK→orders, product_id FK→products, unit_price, quantity, discount)
-products       (product_id PK, product_name, supplier_id FK→suppliers,
-                category_id FK→categories, unit_price, units_in_stock, discontinued)
-shippers       (shipper_id PK, company_name)
-suppliers      (supplier_id PK, company_name, city, country)
+categories, customers, employees, orders, order_details, products,
+shippers, suppliers, region, territories, employee_territories,
+customer_customer_demo, customer_demographics, us_states
 ```
 
-### Key Relationships
+### Key Relationships (13 FKs)
 
 ```
-customers ──1:N──→ orders ──1:N──→ order_details ←──N:1── products
-employees  ──1:N──→ orders                    products ←──N:1── categories
-shippers   ──1:N──→ orders                    products ←──N:1── suppliers
+orders.customer_id → customers.customer_id
+orders.employee_id → employees.employee_id
+orders.ship_via → shippers.shipper_id
+order_details.order_id → orders.order_id
+order_details.product_id → products.product_id
+products.category_id → categories.category_id
+products.supplier_id → suppliers.supplier_id
+employees.reports_to → employees.employee_id  (self-join)
+territories.region_id → region.region_id
+employee_territories.territory_id → territories.territory_id
+employee_territories.employee_id → employees.employee_id
+customer_customer_demo.customer_id → customers.customer_id
+customer_customer_demo.customer_type_id → customer_demographics.customer_type_id
 ```
 
 ### Business Metrics
 
 `revenue = order_details.unit_price * quantity * (1 - discount)`
 
+## ChromaDB RAG Index
+
+`.rag_index/` — Persistent ChromaDB with 2 collections:
+
+| Collection | Contents | K |
+|------------|----------|---|
+| `schema_chunks` | Column-level chunks (one per column, with FK info) | 3 |
+| `examples` | 18 Q→SQL example pairs | 2 |
+
+Built via `scripts/build_rag_index.py`.
+
 ## Demo Data Backend
 
-`backend/app/db/demo_data.py` (83 lines) — Hardcoded Northwind DataFrames.
+`backend/app/db/demo_data.py` — Hardcoded Northwind DataFrames.
+`backend/app/db/demo_executor.py` — Pattern-matches SQL to pandas operations (8 patterns).
 
-`backend/app/db/demo_executor.py` (165 lines) — Pattern-matches SQL to pandas operations.
+## Schema Metadata
 
-### Supported Demo Query Patterns
+`backend/app/db/northwind_full_schema.py` — Full schema for RAG and validation:
+- `TABLE_COLUMNS` — 15 tables with column names and type descriptions
+- `PRIMARY_KEYS` — composite and single-column PKs
+- `FOREIGN_KEYS` — 13 tuples `(child_table, child_col, parent_table, parent_col)`
 
-| Pattern | SQL Match | Pandas Function |
-|---------|-----------|-----------------|
-| Customer revenue | `FROM customers` + `total_revenue` | `_customer_revenue()` |
-| Product revenue | `FROM products` + `total_revenue` | `_product_revenue()` |
-| Category revenue | `FROM categories` + `total_revenue` | `_category_revenue()` |
-| Employee revenue | `FROM employees` + `total_revenue` | `_employee_revenue()` |
-| Product inventory | `FROM products` + `units_in_stock` | `_product_inventory()` |
-| Shipper freight | `FROM shippers` | `_shipper_freight()` |
-| Customers by country | `COUNT(customers.customer_id)` | `_customers_by_country()` |
-| Recent orders | `WHERE orders.order_date >=` | `_recent_orders()` |
-| Fallback | (anything else) | `_recent_orders()` |
+`backend/app/db/northwind_schema.py` — Legacy keyword→table mapping (18 keywords).
 
-## Schema Retrieval
+## Evaluation Golden Dataset
 
-`backend/app/db/northwind_schema.py` — Keyword→table mapping for RAG-style retrieval.
-Maps 18 keywords (customer, order, revenue, freight, etc.) to relevant table groups.
+`evaluation/golden_dataset.py` — 50 questions across 6 categories:
+- 10 simple SELECT, 10 two-table JOIN, 10 multi-table JOIN (3+), 10 aggregation, 5 GROUP BY + HAVING, 5 time-based
+- Each with hand-verified `gold_sql` and `time_sensitive` flag
