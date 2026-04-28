@@ -1,0 +1,26 @@
+Codemap Analysis Report — 2026-04-28
+======================================
+
+Project: insight-sql
+Type: Single-app (Python backend + Streamlit frontend)
+Status: Initial codemap generation (no previous codemaps existed)
+
+Files Scanned: 30 source files (excluding __pycache__, .git, node_modules)
+
+Architecture Summary:
+  - LangGraph StateGraph with 7 agents in a linear pipeline
+  - Groq LLM for SQL generation and explanation
+  - PostgreSQL 16 (Docker) with Northwind dataset
+  - Pandas-based demo executor as fallback
+  - Streamlit single-page dashboard
+
+Codemaps Generated:
+  [NEW] docs/CODEMAPS/architecture.md   (~600 tokens) — System overview, pipeline flow, routing logic
+  [NEW] docs/CODEMAPS/backend.md        (~700 tokens) — Agents, controller, services, DB layer, config
+  [NEW] docs/CODEMAPS/frontend.md       (~300 tokens) — Streamlit UI layout and interactions
+  [NEW] docs/CODEMAPS/data.md           (~500 tokens) — DB schema, demo backend, retrieval mapping
+  [NEW] docs/CODEMAPS/dependencies.md   (~350 tokens) — External services, Python deps, fallback behavior
+
+No staleness warnings (initial generation).
+
+No architecture changes detected (baseline).

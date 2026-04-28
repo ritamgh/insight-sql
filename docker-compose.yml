@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: insightsql-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: northwind
+    ports:
+      - "5433:5432"
+    volumes:
+      - ./data/postgres/init:/docker-entrypoint-initdb.d:ro
+      - insightsql-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d northwind"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  insightsql-postgres-data:
