@@ -1,41 +1,36 @@
-Codemap Analysis Report — 2026-04-28 (Update 3)
+Codemap Analysis Report — 2026-04-29 (Update 4)
 =================================================
 
 Project: insight-sql
 Previous scan: 2026-04-28 (52 files)
 Current scan: 52 files (no new files)
 
-Diff: <10% — incremental update
+Diff: ~15% — incremental update
 
 ## Files Modified Since Last Scan
 
-  backend/app/agents/disambiguation_agent.py  (283 → 346 lines)
-  backend/app/services/llm.py                 (78 → 132 lines)
-  backend/app/schemas/state.py                (32 → 36 lines)
+  frontend/streamlit_app.py                   (layout restructured)
+  backend/app/agents/disambiguation_agent.py  (minor tweaks)
   backend/app/agents/retrieval_agent.py       (minor)
   backend/app/controller.py                   (minor)
   backend/app/prompts/sql_generation.py       (minor)
-  frontend/streamlit_app.py                   (minor)
+  backend/app/schemas/state.py                (minor)
+  backend/app/services/llm.py                 (minor)
   tests/test_disambiguation_llm.py            (minor)
 
 ## Changes
 
-1. Disambiguation merge logic overhauled:
-   - `_combine_query_with_clarification()` → `merge_clarification()` with context-aware prefixing
-   - Detects question type (breakdown, metric, time window, filter) and formats answer accordingly
-   - Helper functions: `_asks_for_breakdown()`, `_asks_for_metric()`, `_asks_for_time_window()`, `_asks_for_filter()`, `_looks_like_dimension_answer()`, `_looks_like_filter_answer()`
-   - User clarification now short-circuits (sets `pending_clarification=False`) instead of re-running LLM
+1. Frontend layout restructured:
+   - Expanders replaced with st.tabs (4 tabs: Generated SQL, Agent Trace, RAG Context, State)
+   - Added metrics row (Rows, Data Source, Validation, Retries) above explanation
+   - Added status pills in hero strip (PostgreSQL, Groq, LangSmith)
+   - RAG Context tab uses two-column layout (schema chunks left, examples right)
 
-2. LLM service expanded:
-   - `disambiguate_with_groq()` → returns `{is_ambiguous, clarification_question, default_assumption}`
-   - `_extract_json()` parses LLM JSON output with validation and fallback
-   - Langchain imports now lazy (try/except wrapper)
-
-3. State: added `user_clarification` and `applied_clarification` fields
+2. No new routes, services, or agent pipeline changes
 
 ## Codemaps Updated
 
-  [UPDATED] docs/CODEMAPS/backend.md — disambiguation merge logic, LLM service, state fields
-  [UNCHANGED] architecture.md, frontend.md, data.md, dependencies.md
+  [UPDATED] docs/CODEMAPS/frontend.md — layout diagram, status pills, interactions
+  [REFRESHED] architecture.md, backend.md, data.md, dependencies.md (date headers only)
 
 No staleness warnings.

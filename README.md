@@ -2,23 +2,25 @@
 
 Agentic NL2SQL prototype that translates natural-language business questions into SQL, executes them against a Northwind database, and returns plain-English explanations.
 
-Built with **LangGraph** (agent orchestration), **Groq** (LLM inference), and **Streamlit** (UI).
+Built with **LangGraph** (agent orchestration), **Groq** (LLM inference), **ChromaDB** (RAG retrieval), and **Streamlit** (UI).
 
 ## Architecture
 
 ```
 User (Streamlit)
   │
-  ▼
-LangGraph Controller ──► 7-Agent Pipeline
+  ├─ Clarification loop (max 2 rounds)
   │
-  ├─ Disambiguation Agent   (resolves vague terms)
-  ├─ Domain Guard Agent     (rejects out-of-scope questions)
-  ├─ Retrieval Agent        (selects relevant schema)
-  ├─ SQL Generation Agent   (Groq LLM → SELECT)
-  ├─ Validation Agent       (safety check + EXPLAIN)
-  ├─ Execution Agent        (Postgres or demo fallback)
-  └─ Explanation Agent      (Groq LLM → summary)
+  ▼
+Controller (LangGraph)
+  │
+  ├─ Disambiguation   (LLM clarification + fallback)
+  ├─ Domain Guard     (keyword filter)
+  ├─ Retrieval        (ChromaDB semantic + BM25 hybrid)
+  ├─ SQL Generation   (Groq LLM)
+  ├─ Validation       (4 layers: safety→schema→semantic→EXPLAIN)
+  ├─ Execution        (PostgreSQL / demo fallback)
+  └─ Explanation      (Groq LLM)
 ```
 
 When PostgreSQL is unavailable, the app automatically falls back to a pandas-based demo executor so the full pipeline still works.
@@ -74,8 +76,10 @@ Ask a business question in natural language:
 - "Sales by category"
 - "Employees by revenue"
 - "Average freight by shipper"
+- "Monthly sales revenue"
+- "Customers with more than ten orders"
 
-The sidebar shows database connection status, agent stack info, and clickable demo queries. After running a query, the app displays the explanation, agent trace, result table, and generated SQL.
+The sidebar shows database connection status, agent stack info, and clickable demo queries. If your question is ambiguous, the app asks for clarification (up to 2 rounds) before proceeding. After running a query, the app displays the explanation, agent trace, result table, and generated SQL.
 
 ## Agent Pipeline
 
@@ -83,15 +87,55 @@ Each agent is a pure function that transforms a shared `AgentState` dict:
 
 | Agent | Role | LLM |
 |-------|------|-----|
-| Disambiguation | Resolves "top", "recent", "best" with default assumptions | No |
+| Disambiguation | Resolves vague terms via LLM; asks clarification questions (max 2 rounds); falls back to default assumptions | Yes |
 | Domain Guard | Blocks questions outside Northwind domain (e.g. cars, weather) | No |
-| Retrieval | Keyword-maps query to relevant schema snippets | No |
-| SQL Generation | Generates a `SELECT` statement via Groq | Yes |
-| Validation | Blocks DML/DDL, runs `EXPLAIN`, falls back to demo if DB down | No |
+| Retrieval | ChromaDB semantic + BM25 hybrid search for relevant schema and example SQL | No |
+| SQL Generation | Generates a `SELECT` statement via Groq with schema context and retrieved examples | Yes |
+| Validation | 4-layer check: safety (sqlglot AST) → schema (AST + alias) → semantic (GROUP BY) → EXPLAIN | No |
 | Execution | Runs SQL against PostgreSQL or pandas demo backend | No |
 | Explanation | Summarizes results in plain English via Groq | Yes |
 
 The controller retries SQL generation up to `max_attempts` times when validation fails with a retryable error.
+
+## RAG Module
+
+Hybrid retrieval over a ChromaDB persistent index (`.rag_index/`):
+
+| Collection | Contents | K |
+|------------|----------|---|
+| `schema_chunks` | Column-level chunks from full Northwind schema (one per column, with FK info) | 3 |
+| `examples` | 20 hand-authored question-to-SQL example pairs | 2 |
+
+Retrieval merges semantic search (all-MiniLM-L6-v2 embeddings) with BM25 keyword matching, prioritizing semantic results.
+
+Build or rebuild the index:
+
+```bash
+python scripts/build_rag_index.py
+```
+
+## Evaluation Framework
+
+Golden-set evaluation with 50 questions across 6 categories:
+
+| Category | Count |
+|----------|-------|
+| Simple SELECT | 10 |
+| Two-table JOIN | 10 |
+| Multi-table JOIN (3+) | 10 |
+| Aggregation | 10 |
+| GROUP BY + HAVING | 5 |
+| Time-based | 5 |
+
+Metrics: execution accuracy, execution success, error recovery, latency.
+
+Run evaluations:
+
+```bash
+python scripts/run_eval.py
+```
+
+Results are written to `evaluation/results/` as JSONL.
 
 ## Database
 
@@ -99,7 +143,7 @@ The controller retries SQL generation up to `max_attempts` times when validation
 
 ### Tables
 
-`categories`, `customers`, `employees`, `orders`, `order_details`, `products`, `shippers`, `suppliers`
+`categories`, `customers`, `employees`, `orders`, `order_details`, `products`, `shippers`, `suppliers`, `region`, `territories`, `employee_territories`, `customer_customer_demo`, `customer_demographics`, `us_states`
 
 ### Key relationship
 
@@ -113,7 +157,7 @@ revenue = order_details.unit_price * quantity * (1 - discount)
 pytest
 ```
 
-Tests are in `tests/` and cover individual agents (`test_agents.py`) and the full controller pipeline (`test_controller.py`). No live Postgres or Groq API key required — all external calls are mocked.
+Tests are in `tests/` and cover individual agents (`test_agents.py`), the full controller pipeline (`test_controller.py`), RAG retrieval (`test_rag_retrieval.py`), validation layers (`test_validation_layers.py`), disambiguation (`test_disambiguation_llm.py`), demo executor (`test_demo_executor.py`), cardinality checks (`test_cardinality.py`), and evaluation normalization (`test_eval_normalize.py`). No live Postgres or Groq API key required — all external calls are mocked.
 
 ## Project Structure
 
@@ -126,10 +170,15 @@ insight-sql/
 │       ├── core/config.py   # Settings from env vars
 │       ├── db/              # Connection, health, demo data, schema
 │       ├── prompts/         # LLM prompt templates
+│       ├── rag/             # ChromaDB index, chunks, examples, retrieval
 │       ├── schemas/state.py # AgentState TypedDict
 │       └── services/llm.py  # Groq integration
+├── evaluation/              # Golden dataset, metrics, configurations, runner
 ├── frontend/
 │   └── streamlit_app.py     # Streamlit dashboard
+├── scripts/
+│   ├── build_rag_index.py   # Build ChromaDB index
+│   └── run_eval.py          # Run golden-set evaluation
 ├── data/
 │   └── postgres/init/       # Northwind SQL seed
 ├── tests/                   # pytest tests
