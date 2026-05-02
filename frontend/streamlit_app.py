@@ -38,56 +38,215 @@ def _inject_css() -> None:
         """
         <style>
         :root {
-            --ink: #15202b;
-            --muted: #5d6b7a;
-            --line: #dce3ea;
-            --panel: #ffffff;
-            --soft: #f6f8fb;
-            --accent: #0f766e;
-            --accent-2: #2563eb;
-            --warn: #b45309;
+            --ink: #302827;
+            --muted: #756965;
+            --line: #eadfcf;
+            --panel: #fffdf7;
+            --soft: #fbf4e9;
+            --cream: #fff8ec;
+            --cream-strong: #f4ead8;
+            --nav: #474040;
+            --nav-2: #5a514f;
+            --accent: #b85c38;
+            --accent-2: #7d4f3f;
+            --warn: #9a5a13;
             --bad: #b91c1c;
         }
 
         .stApp {
             background:
-                radial-gradient(circle at top left, rgba(15, 118, 110, 0.08), transparent 32rem),
-                linear-gradient(180deg, #fbfcfe 0%, #f3f6fa 100%);
+                radial-gradient(circle at top left, rgba(184, 92, 56, 0.06), transparent 30rem),
+                radial-gradient(circle at bottom right, rgba(71, 64, 64, 0.05), transparent 28rem),
+                linear-gradient(180deg, #fffbf3 0%, var(--cream) 100%);
             color: var(--ink);
         }
 
         .block-container {
-            padding-top: 3.25rem;
+            padding-top: 2rem;
             padding-bottom: 4rem;
             max-width: 1280px;
         }
 
+        [data-testid="stHeader"],
+        header[data-testid="stHeader"],
+        .stAppHeader {
+            background: #474040 !important;
+            color: #fff7ea !important;
+            border-bottom: 1px solid rgba(255, 247, 234, 0.12);
+        }
+
+        [data-testid="stToolbar"],
+        .stAppToolbar,
+        [data-testid="stToolbarActions"] {
+            background: #474040 !important;
+            color: #fff7ea !important;
+        }
+
+        [data-testid="stHeader"] button,
+        [data-testid="stHeader"] svg,
+        [data-testid="stHeader"] span,
+        .stAppHeader button,
+        .stAppHeader svg,
+        .stAppHeader span {
+            color: #fff7ea !important;
+        }
+
+        [data-testid="stBaseButton-header"],
+        [data-testid="stMainMenuButton"] {
+            background: rgba(255, 247, 234, 0.08) !important;
+            border-color: rgba(255, 247, 234, 0.14) !important;
+        }
+
+        [data-testid="stBaseButton-header"]:hover,
+        [data-testid="stMainMenuButton"]:hover {
+            background: rgba(255, 247, 234, 0.16) !important;
+        }
+
         [data-testid="stSidebar"] {
-            background: #101820;
-            color: #f8fafc;
-            border-right: 1px solid rgba(255, 255, 255, 0.08);
+            background: #474040;
+            color: #fff7ea;
+            border-right: 1px solid rgba(255, 247, 234, 0.12);
+            box-shadow: 10px 0 28px rgba(48, 40, 39, 0.18);
         }
 
         [data-testid="stSidebar"] * {
-            color: #f8fafc;
+            color: #fff7ea;
         }
 
         [data-testid="stSidebar"] .stCaption,
         [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p {
-            color: rgba(248, 250, 252, 0.78);
+            color: rgba(255, 247, 234, 0.78);
+        }
+
+        [data-testid="stSidebar"] h2,
+        [data-testid="stSidebar"] h3 {
+            color: #f9dec3 !important;
+            font-size: 0.78rem;
+            font-weight: 900;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            margin-top: 1.25rem;
+            padding-bottom: 0.45rem;
+            border-bottom: 1px solid rgba(255, 247, 234, 0.14);
+        }
+
+        [data-testid="stSidebar"] .block-container,
+        [data-testid="stSidebar"] > div:first-child {
+            padding-top: 0.7rem;
+        }
+
+        .sidebar-section-title {
+            color: #f9dec3;
+            font-size: 0.72rem;
+            font-weight: 900;
+            letter-spacing: 0.11em;
+            text-transform: uppercase;
+            margin: 1.1rem 0 0.55rem;
+        }
+
+        .sidebar-card {
+            background: rgba(255, 247, 234, 0.08);
+            border: 1px solid rgba(255, 247, 234, 0.14);
+            border-radius: 8px;
+            padding: 0.8rem 0.85rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .sidebar-status-row {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: #fff7ea;
+            font-size: 0.9rem;
+            font-weight: 800;
+            margin-bottom: 0.45rem;
+        }
+
+        .sidebar-status-dot {
+            width: 0.55rem;
+            height: 0.55rem;
+            border-radius: 999px;
+            background: #34d399;
+            box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.14);
+            flex: 0 0 auto;
+        }
+
+        .sidebar-status-dot.warn {
+            background: #f59e0b;
+            box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.16);
+        }
+
+        .sidebar-muted {
+            color: rgba(255, 247, 234, 0.66);
+            font-size: 0.74rem;
+            line-height: 1.4;
+            overflow-wrap: anywhere;
+        }
+
+        .sidebar-stack-row {
+            display: grid;
+            grid-template-columns: 1.25rem minmax(0, 1fr);
+            gap: 0.55rem;
+            align-items: start;
+            padding: 0.45rem 0;
+            border-bottom: 1px solid rgba(255, 247, 234, 0.09);
+        }
+
+        .sidebar-stack-row:last-child {
+            border-bottom: 0;
+        }
+
+        .sidebar-stack-icon {
+            color: #f9dec3;
+            font-size: 0.95rem;
+            line-height: 1.25;
+            text-align: center;
+        }
+
+        .sidebar-stack-label {
+            color: rgba(255, 247, 234, 0.58);
+            font-size: 0.68rem;
+            font-weight: 850;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            margin-bottom: 0.05rem;
+        }
+
+        .sidebar-stack-value {
+            color: #fff7ea;
+            font-size: 0.82rem;
+            font-weight: 750;
+            line-height: 1.3;
+            overflow-wrap: anywhere;
+        }
+
+        .sidebar-empty {
+            color: rgba(255, 247, 234, 0.58);
+            border: 1px dashed rgba(255, 247, 234, 0.18);
+            border-radius: 8px;
+            padding: 0.65rem 0.75rem;
+            font-size: 0.78rem;
         }
 
         [data-testid="stSidebar"] .stButton > button {
-            background: rgba(255, 255, 255, 0.08);
-            color: #f8fafc;
-            border: 1px solid rgba(255, 255, 255, 0.14);
+            background: rgba(255, 247, 234, 0.08);
+            color: #fff7ea;
+            border: 1px solid rgba(255, 247, 234, 0.16);
             border-radius: 8px;
             min-height: 2.35rem;
+            font-weight: 750;
+            transition: background 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
         }
 
         [data-testid="stSidebar"] .stButton > button:hover {
-            background: rgba(255, 255, 255, 0.14);
-            border-color: rgba(255, 255, 255, 0.3);
+            background: rgba(249, 222, 195, 0.18);
+            border-color: rgba(249, 222, 195, 0.42);
+            transform: translateX(2px);
+        }
+
+        [data-testid="stSidebar"] div[data-testid="stAlert"] {
+            background: rgba(255, 247, 234, 0.10);
+            border-color: rgba(255, 247, 234, 0.18);
         }
 
         h1, h2, h3 {
@@ -109,11 +268,12 @@ def _inject_css() -> None:
             display: grid;
             grid-template-columns: minmax(0, 1fr) auto;
             gap: 1.5rem;
-            align-items: end;
-            margin-top: 0.35rem;
-            margin-bottom: 1.1rem;
-            padding-bottom: 1rem;
+            align-items: center;
+            margin: 0 0 1.25rem;
+            padding: 0.9rem 0 1rem;
             border-bottom: 1px solid var(--line);
+            background: transparent;
+            box-shadow: none;
         }
 
         .hero-kicker {
@@ -123,6 +283,10 @@ def _inject_css() -> None:
             letter-spacing: 0.08em;
             text-transform: uppercase;
             margin-bottom: 0.35rem;
+        }
+
+        .hero h1 {
+            color: var(--ink);
         }
 
         .hero-copy {
@@ -143,7 +307,7 @@ def _inject_css() -> None:
             border: 1px solid var(--line);
             border-radius: 999px;
             padding: 0.38rem 0.72rem;
-            background: rgba(255, 255, 255, 0.78);
+            background: rgba(255, 253, 247, 0.82);
             color: var(--muted);
             font-size: 0.82rem;
             font-weight: 700;
@@ -158,16 +322,16 @@ def _inject_css() -> None:
 
         .pill.warn {
             color: var(--warn);
-            border-color: rgba(180, 83, 9, 0.24);
-            background: rgba(180, 83, 9, 0.08);
+            border-color: rgba(154, 90, 19, 0.24);
+            background: rgba(154, 90, 19, 0.08);
         }
 
         .query-shell {
             border: 1px solid var(--line);
-            background: rgba(255, 255, 255, 0.9);
+            background: rgba(255, 253, 247, 0.92);
             border-radius: 8px;
             padding: 1rem 1rem 0.85rem;
-            box-shadow: 0 16px 40px rgba(21, 32, 43, 0.07);
+            box-shadow: 0 16px 40px rgba(71, 64, 64, 0.10);
             margin-bottom: 1rem;
         }
 
@@ -197,7 +361,7 @@ def _inject_css() -> None:
             border-radius: 8px;
             padding: 1.05rem 1.15rem;
             margin: 0.35rem 0 1rem;
-            box-shadow: 0 10px 24px rgba(21, 32, 43, 0.045);
+            box-shadow: 0 10px 24px rgba(71, 64, 64, 0.08);
         }
 
         .answer-panel p:last-child {
@@ -213,7 +377,7 @@ def _inject_css() -> None:
 
         .metric-card {
             border: 1px solid var(--line);
-            background: rgba(255, 255, 255, 0.82);
+            background: rgba(255, 253, 247, 0.88);
             border-radius: 8px;
             padding: 0.85rem 0.95rem;
         }
@@ -237,12 +401,17 @@ def _inject_css() -> None:
 
         .stTextInput > div > div > input {
             border-radius: 8px;
-            background: #ffffff;
+            background: #fffdf7;
             color: var(--ink);
             min-height: 3rem;
             border-color: var(--line);
             font-size: 1rem;
-            box-shadow: 0 12px 28px rgba(21, 32, 43, 0.05);
+            box-shadow: 0 12px 28px rgba(71, 64, 64, 0.08);
+        }
+
+        .stTextInput > div > div > input:focus {
+            border-color: var(--accent) !important;
+            box-shadow: 0 0 0 3px rgba(184, 92, 56, 0.16);
         }
 
         .stTextInput > div > div > input::placeholder {
@@ -273,15 +442,15 @@ def _inject_css() -> None:
 
         .stFormSubmitButton > button[kind="primary"],
         .stButton > button[kind="primary"] {
-            background: #ff6b6b;
-            border-color: #ff6b6b;
+            background: var(--accent);
+            border-color: var(--accent);
             color: #ffffff;
         }
 
         .stFormSubmitButton > button[kind="primary"]:hover,
         .stButton > button[kind="primary"]:hover {
-            background: #ff7f7f;
-            border-color: #ff7f7f;
+            background: #a84e2d;
+            border-color: #a84e2d;
             color: #ffffff;
         }
 
@@ -311,11 +480,11 @@ def _inject_css() -> None:
         }
 
         .stTabs [aria-selected="true"] {
-            color: #ef4444;
+            color: var(--accent);
         }
 
         .stTabs [aria-selected="true"] p {
-            color: #ef4444;
+            color: var(--accent);
         }
 
         .streamlit-expanderHeader {
@@ -578,8 +747,8 @@ st.markdown(
     (
         '<div class="hero">'
         "<div>"
-        '<div class="hero-kicker">Northwind analytics agent</div>'
         "<h1>InsightSQL</h1>"
+        '<div class="hero-kicker">Northwind analytics agent</div>'
         '<div class="hero-copy">'
         "Ask business questions in plain English and inspect the generated SQL, "
         "validation path, retrieved context, and result set in one workspace."
@@ -598,36 +767,71 @@ if not settings.groq_api_key:
     )
 
 with st.sidebar:
-    st.header("System Status")
-    if db_health["is_connected"]:
-        st.success(db_health["message"])
-    else:
-        st.warning(db_health["message"])
-        st.caption(db_health["hint"])
-    st.caption(db_health["database_url"])
-
-    st.header("Agent Stack")
-    st.write("Workflow: LangGraph")
-    st.write(f"LLM: groq / {settings.groq_model}")
-    st.write(
-        "LangSmith: enabled"
-        if settings.langsmith_tracing and settings.langsmith_api_key
-        else "LangSmith: configured off"
+    status_label = "PostgreSQL connected" if db_health["is_connected"] else "Demo data fallback"
+    status_dot = "sidebar-status-dot" if db_health["is_connected"] else "sidebar-status-dot warn"
+    status_hint = f'<div class="sidebar-muted">{html.escape(db_health["hint"])}</div>' if db_health.get("hint") else ""
+    st.markdown(
+        (
+            '<div class="sidebar-section-title">System Status</div>'
+            '<div class="sidebar-card">'
+            '<div class="sidebar-status-row">'
+            f'<span class="{status_dot}"></span>'
+            f"<span>{html.escape(status_label)}</span>"
+            "</div>"
+            f'<div class="sidebar-muted">{html.escape(db_health["message"])}</div>'
+            f'<div class="sidebar-muted">{html.escape(db_health["database_url"])}</div>'
+            f"{status_hint}"
+            "</div>"
+        ),
+        unsafe_allow_html=True,
     )
 
-    st.header("Demo Queries")
+    langsmith_status = (
+        "Enabled"
+        if settings.langsmith_tracing and settings.langsmith_api_key
+        else "Configured off"
+    )
+    st.markdown(
+        (
+            '<div class="sidebar-section-title">Agent Stack</div>'
+            '<div class="sidebar-card">'
+            '<div class="sidebar-stack-row">'
+            '<div class="sidebar-stack-icon">L</div>'
+            '<div><div class="sidebar-stack-label">Workflow</div>'
+            '<div class="sidebar-stack-value">LangGraph</div></div>'
+            "</div>"
+            '<div class="sidebar-stack-row">'
+            '<div class="sidebar-stack-icon">G</div>'
+            '<div><div class="sidebar-stack-label">LLM</div>'
+            f'<div class="sidebar-stack-value">groq / {html.escape(settings.groq_model)}</div></div>'
+            "</div>"
+            '<div class="sidebar-stack-row">'
+            '<div class="sidebar-stack-icon">S</div>'
+            '<div><div class="sidebar-stack-label">LangSmith</div>'
+            f'<div class="sidebar-stack-value">{html.escape(langsmith_status)}</div></div>'
+            "</div>"
+            "</div>"
+        ),
+        unsafe_allow_html=True,
+    )
+
+    st.markdown('<div class="sidebar-section-title">Demo Queries</div>', unsafe_allow_html=True)
     for example_query in EXAMPLE_QUERIES:
         if st.button(example_query, use_container_width=True):
             st.session_state["query"] = example_query
             _run_query(example_query)
             st.rerun()
 
-    st.header("Query History")
-    for idx, history_query in enumerate(list(_history())):
-        if st.button(history_query, key=f"history-{idx}", use_container_width=True):
-            st.session_state["query"] = history_query
-            _run_query(history_query)
-            st.rerun()
+    st.markdown('<div class="sidebar-section-title">Query History</div>', unsafe_allow_html=True)
+    history_items = list(_history())
+    if history_items:
+        for idx, history_query in enumerate(history_items):
+            if st.button(history_query, key=f"history-{idx}", use_container_width=True):
+                st.session_state["query"] = history_query
+                _run_query(history_query)
+                st.rerun()
+    else:
+        st.markdown('<div class="sidebar-empty">No recent queries yet.</div>', unsafe_allow_html=True)
 
 st.markdown('<div class="section-label">Ask a question</div>', unsafe_allow_html=True)
 with st.form("query-form"):
